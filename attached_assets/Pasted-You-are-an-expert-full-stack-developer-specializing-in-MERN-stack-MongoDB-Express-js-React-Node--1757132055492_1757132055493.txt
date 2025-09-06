@@ -1,0 +1,138 @@
+You are an expert full-stack developer specializing in MERN stack (MongoDB, Express.js, React, Node.js) for mental health web applications. Your task is to design and generate the complete, production-ready code for a Digital Psychological Intervention System as a web-based application (with mobile responsiveness) to address mental health issues among college students, focusing on anxiety, depression, burnout, sleep disorders, academic stress, and social isolation. The system must be stigma-free, scalable, privacy-compliant (GDPR/HIPAA-like), and customizable for institutions, with support for regional languages (e.g., English, Hindi, Tamil, Telugu, Spanish) and cultural contexts (e.g., Indian colleges with yoga/mindfulness tailored to local traditions).
+Overall App Architecture
+
+Backend: Node.js with Express.js for API routes; MongoDB (via Mongoose) for database; Socket.io for real-time features (e.g., peer forum).
+Frontend: React.js for dynamic, smooth UI.
+Authentication: JWT with bcrypt for password hashing; secure routes with middleware.
+Notifications: Nodemailer for emails (e.g., "Successfully registered"); USE NODEMAILEER FOR OTP ALSO
+
+OpenAI API: For chatbot AI (coping strategies, sentiment analysis).
+Google Maps API: For mapping feel-good places and local psychologists.
+YouTube API: Embed/search motivational videos in resource hub.
+Spotify API: Embed relaxation audio playlists.
+Google Translate API: Dynamic regional language support for quizzes, resources, and chatbot.
+Quotable.io or ZenQuotes API: Fetch daily motivational quotes.
+Optional: Weather API (for mood-based tasks, e.g., "Go for a walk if sunny"), Calendar API (for booking integration).
+
+
+Privacy & Security: Encrypt sensitive data (e.g., quiz results) with MongoDB encryption; use HTTPS; include user consent form during signup; add data deletion endpoint.
+Testing: Include Jest for React unit tests, Mocha/Chai for backend; provide load testing setup for scalability (1000+ users).
+Open-Source: Include README.md with setup instructions, API docs, and MIT LICENSE; make modular for contributions.
+Deployment: Use Heroku or Render for backend; Vercel or Netlify for frontend; MongoDB Atlas for database.
+Uniqueness & Cultural Relevance: Tailor content for Indian context (e.g., yoga, pranayama, Tagore quotes); use unique branding like "Sukoon" (meaning peace in Hindi) with lotus logo; incorporate cultural icons (e.g., mandala patterns in UI).
+
+UI/UX Guidelines (Make Unique, Creative, Attractive with Effects)
+
+Overall Design Theme: Stress-free, calming aesthetic with soft gradients (blues, greens, purples for serenity), minimalistic layout, rounded corners, subtle shadows for depth. Use creative elements like particle effects (e.g., floating bubbles on home page for relaxation), wave animations (for loading), and confetti bursts (for task completion).
+Attractive Effects: Use Framer Motion for smooth transitions (e.g., fade-in pages, scale-up buttons on hover), Animate.css for subtle shakes/glows, and React Confetti for celebratory moments (e.g., badge earned). Add micro-interactions like heart pulses for wellness tasks or ripple effects on buttons.
+Dark Mode: Toggle switch in header; auto-detect system preference; store in MongoDB user profile.
+Responsiveness & Accessibility: Tailwind CSS for mobile-first design; WCAG 2.1 Level AA compliance (ARIA labels, screen reader support, keyboard navigation, text-to-speech for quizzes/resources via Web Speech API).
+Navigation: Sidebar or bottom nav bar with icons (e.g., home, chatbot, quiz, booking, forum, dashboard, profile); use React Router for routing.
+Performance: Lazy load components/images; use CDN for assets; optimize with minification.
+Unique Creative Elements: Custom SVG icons (e.g., stylized brain for quiz, heart for wellness); background gradients that shift subtly (e.g., calming sunset colors); interactive backgrounds (e.g., slow-moving clouds on home page); culturally inspired motifs (e.g., rangoli patterns in borders for Indian users).
+
+Pages and Their Features/Functionalities
+
+Login/Signup Page:
+
+Functionality: Secure authentication with JWT; signup form collects name, email, password, age, gender, interests (e.g., music, nature for personalization), locality, country (for maps/regional customization); validation (e.g., strong password, email regex); consent checkbox for data usage/privacy policy; Google Sign-In (optional OAuth); forgot password (email reset via Nodemailer).
+UI/Effects: Centered form with gradient background; fade-in animation on load; ripple effect on submit button; success confetti on registration; dark mode toggle in corner.
+APIs/Integrations: Nodemailer for welcome email; Twilio for signup SMS.
+
+
+Home/Dashboard Page:
+
+Functionality: Personalized overview showing daily wellness tasks, mood score (from latest quiz), daily quote/riddle, quick access to chatbot/quiz/forum; streak counter for tasks; virtual pet display (e.g., pet happiness based on engagement).
+UI/Effects: Card-based layout with hover scale-up; particle bubbles floating; wave animation for mood graph; confetti for streak milestones; culturally relevant quote backgrounds (e.g., Indian motifs).
+APIs/Integrations: Quotable.io for quotes; Node.js cron for daily updates; Twilio for task reminders.
+
+
+AI-Guided First-Aid Support (Chatbot Page):
+
+Functionality: Conversational chat interface; user inputs text; AI provides coping strategies (e.g., "Try deep breathing" with guided steps); sentiment analysis to escalate (e.g., suggest booking if score > threshold); anonymized logging in MongoDB; regional language toggle.
+UI/Effects: Chat bubbles with typing indicators; fade-in responses; calming color shifts based on mood (e.g., blue for calm); speech-to-text input option.
+APIs/Integrations: OpenAI API via Express route; Google Translate for languages.
+
+
+Interactive Mood-Based Quiz Page:
+
+Functionality: Self-assessment with PHQ-9/GAD-7 (9-12 questions, 0-3 scoring); progress bar; personalized results/recommendations (e.g., "Low anxiety – try relaxation audio"); save scores to MongoDB; regional language support.
+UI/Effects: Stepper form with slide transitions; color-coded options (green for positive); confetti on completion; text-to-speech for questions.
+APIs/Integrations: Google Translate; MongoDB for questions/storage.
+
+
+Confidential Booking System Page:
+
+Functionality: View counselor availability (MongoDB); select slots via calendar; location-based suggestions (nearby psychologists); confirm booking; reminders 24 hours prior.
+UI/Effects: Interactive calendar with drag-select; map overlay for locations; success animation (e.g., checkmark glow); ripple on confirm button.
+APIs/Integrations: Google Maps; FullCalendar library; Nodemailer/Twilio for confirmations/reminders.
+
+
+Psychoeducational Resource Hub Page:
+
+Functionality: Browse videos/audio/guides; search/filter by category (e.g., anxiety); offline caching; regional/cultural content (e.g., Hindi yoga videos).
+UI/Effects: Grid layout with hover previews; video thumbnails fade-in; playlist carousel with swipe effects.
+APIs/Integrations: YouTube API (embed/search); Spotify API (playlists); Google Translate; Service Workers for offline.
+
+
+Peer Support Platform (Forum Page):
+
+Functionality: Anonymous posting/replies; threaded discussions; moderation (flag/report via Express); upvoting; real-time updates; volunteer moderator tools.
+UI/Effects: Nested comment threads with collapse/expand animations; like button heart pulse; real-time typing indicators.
+APIs/Integrations: Socket.io for real-time; Twilio for notifications.
+
+
+Admin Dashboard Page:
+
+Functionality: View anonymized analytics (e.g., mood trends, usage stats); charts for insights; export reports (CSV/PDF); predictive trends (e.g., anxiety spikes).
+UI/Effects: Interactive charts with zoom; gradient bars; export button with loading spinner.
+APIs/Integrations: Chart.js; Express for data aggregation.
+
+
+Mood-Based Games Page:
+
+Functionality: Games tailored to mood (e.g., breathing exercise timer, puzzle); gamification with points/badges; save progress to MongoDB.
+UI/Effects: Immersive full-screen mode; particle explosions on win; calming visuals.
+APIs/Integrations: None external; use canvas for simple games.
+
+
+Map Feel-Good Places Page:
+
+Functionality: Interactive map showing nearby parks/cafes; user-added places; filters by interest (e.g., nature).
+UI/Effects: Zoom/pan with markers pulsing; add-place modal with slide-up animation.
+APIs/Integrations: Google Maps.
+
+
+Daily Riddles, Puzzles, and Quotes Section (Integrated in Home or Separate Page):
+
+Functionality: Daily refresh; solve riddles for points; motivational quotes with share button.
+UI/Effects: Flip card for riddle reveal; glow on correct answer.
+APIs/Integrations: Quotable.io; Node.js cron for updates.
+
+
+Daily Wellness Tasks Page:
+
+Functionality: Personalized tasks based on profile/quiz; check-off with streaks; reminders.
+UI/Effects: Checklist with checkmark animations; progress circle; confetti on daily completion.
+APIs/Integrations: Twilio for reminders.
+
+
+Feedback System Page:
+
+Functionality: Submit ratings/comments; view own feedback history; admin review in dashboard.
+UI/Effects: Star rating with hover glow; submit button ripple.
+APIs/Integrations: MongoDB storage.
+
+
+Profile Page:
+
+Functionality: Edit details/interests; view quiz history, badges, virtual pet; data deletion button.
+UI/Effects: Avatar with mood-based auras; pet animation (e.g., jumping when happy).
+APIs/Integrations: MongoDB for updates.
+
+
+Virtual Pet Section (Integrated in Profile/Home):
+
+Functionality: Pet evolves (e.g., happier with tasks completed); feed/play mini-games for engagement.
+UI/Effects: Animated pet with idle/walk cycles; pet reactions (e.g., dance on badge earn).
+APIs/Integrations: MongoDB for state.ICLUDE ALL THE FEATUES DONT MISS ANYTHING .MAKE THE WEBSITE UI MORE UNIQUE CRAETIVE ATTRACTIVE WITH STRESS FREE 3D EFFECTS AND ANIMATION.THE WEBSITE SHOULD BE FASTER AND SMOOTHER AND SHOULD HANDLE MANY REQUEST
