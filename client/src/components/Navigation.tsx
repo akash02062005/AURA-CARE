@@ -170,8 +170,8 @@ export default function Navigation() {
           </Button>
           <Link href="/profile">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center cursor-pointer" data-testid="link-profile">
-              {user?.profileImageUrl ? (
-                <img src={user.profileImageUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+              {user && typeof user === 'object' && user !== null && 'profileImageUrl' in user && user.profileImageUrl ? (
+                <img src={user.profileImageUrl as string} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <User className="w-4 h-4 text-white" />
               )}

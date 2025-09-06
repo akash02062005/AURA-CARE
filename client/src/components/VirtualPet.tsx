@@ -18,8 +18,8 @@ export default function VirtualPet() {
   const feedPetMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("PATCH", "/api/virtual-pet", {
-        happiness: Math.min(100, (pet?.happiness || 0) + 20),
-        health: Math.min(100, (pet?.health || 0) + 10),
+        happiness: Math.min(100, (pet && typeof pet === 'object' && pet !== null && 'happiness' in pet ? (pet.happiness as number) : 0) + 20),
+        health: Math.min(100, (pet && typeof pet === 'object' && pet !== null && 'health' in pet ? (pet.health as number) : 0) + 10),
         lastFed: new Date().toISOString(),
       });
     },
@@ -33,8 +33,8 @@ export default function VirtualPet() {
   const playWithPetMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("PATCH", "/api/virtual-pet", {
-        happiness: Math.min(100, (pet?.happiness || 0) + 30),
-        experience: (pet?.experience || 0) + 10,
+        happiness: Math.min(100, (pet && typeof pet === 'object' && pet !== null && 'happiness' in pet ? (pet.happiness as number) : 0) + 30),
+        experience: (pet && typeof pet === 'object' && pet !== null && 'experience' in pet ? (pet.experience as number) : 0) + 10,
         lastPlayed: new Date().toISOString(),
       });
     },
@@ -48,7 +48,9 @@ export default function VirtualPet() {
   const getPetEmoji = () => {
     if (!pet) return "🐱";
     
-    const { happiness, type } = pet;
+    if (!pet || typeof pet !== 'object' || pet === null || !('happiness' in pet) || !('type' in pet)) return "🐱";
+    const happiness = pet.happiness as number;
+    const type = pet.type as string;
     
     if (happiness >= 80) {
       return type === "cat" ? "😸" : "🐶";
@@ -88,27 +90,27 @@ export default function VirtualPet() {
         </motion.div>
 
         <div>
-          <h4 className="font-semibold text-foreground mb-2">{pet.name}</h4>
+          <h4 className="font-semibold text-foreground mb-2">{pet && typeof pet === 'object' && pet !== null && 'name' in pet ? (pet.name as string) : 'Luna'}</h4>
           <div className="space-y-2">
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span>Happiness</span>
-                <span>{pet.happiness}%</span>
+                <span>{pet && typeof pet === 'object' && pet !== null && 'happiness' in pet ? (pet.happiness as number) : 0}%</span>
               </div>
               <Progress 
-                value={pet.happiness} 
-                className={`h-2 ${getHappinessColor(pet.happiness)}`}
+                value={pet && typeof pet === 'object' && pet !== null && 'happiness' in pet ? (pet.happiness as number) : 0} 
+                className={`h-2 ${getHappinessColor(pet && typeof pet === 'object' && pet !== null && 'happiness' in pet ? (pet.happiness as number) : 0)}`}
               />
             </div>
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span>Health</span>
-                <span>{pet.health}%</span>
+                <span>{pet && typeof pet === 'object' && pet !== null && 'health' in pet ? (pet.health as number) : 0}%</span>
               </div>
-              <Progress value={pet.health} className="h-2 bg-blue-500" />
+              <Progress value={pet && typeof pet === 'object' && pet !== null && 'health' in pet ? (pet.health as number) : 0} className="h-2 bg-blue-500" />
             </div>
             <div className="text-sm text-muted-foreground">
-              Level {pet.level} • {pet.experience} XP
+              Level {pet && typeof pet === 'object' && pet !== null && 'level' in pet ? (pet.level as number) : 1} • {pet && typeof pet === 'object' && pet !== null && 'experience' in pet ? (pet.experience as number) : 0} XP
             </div>
           </div>
         </div>
