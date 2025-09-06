@@ -343,7 +343,7 @@ export default function Chatbot() {
                 <Volume2 className="w-4 h-4 mr-1" />
                 Read aloud
               </Button>
-              {conversations && conversations.some((c: any) => c.escalated) && (
+              {conversations && Array.isArray(conversations) && conversations.some((c: any) => c.escalated) && (
                 <Badge variant="destructive" className="ml-auto">
                   <AlertTriangle className="w-3 h-3 mr-1" />
                   Crisis detected - Consider booking a session

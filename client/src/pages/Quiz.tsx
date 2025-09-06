@@ -146,6 +146,7 @@ export default function Quiz() {
 
     const assessmentData = {
       type: currentQuiz!,
+      userId: "current-user", // This will be set properly by the API
       responses: responses,
       totalScore,
       severity,
@@ -560,7 +561,7 @@ export default function Quiz() {
         </div>
 
         {/* Assessment History */}
-        {assessments && assessments.length > 0 && (
+        {assessments && Array.isArray(assessments) && assessments.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -575,7 +576,7 @@ export default function Quiz() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {assessments.slice(0, 5).map((assessment: any) => (
+                  {Array.isArray(assessments) ? assessments.slice(0, 5).map((assessment: any) => (
                     <div
                       key={assessment.id}
                       className="flex items-center justify-between p-4 bg-background rounded-lg border"
@@ -590,7 +591,7 @@ export default function Quiz() {
                         {assessment.severity}
                       </Badge>
                     </div>
-                  ))}
+                  )) : null}
                 </div>
               </CardContent>
             </Card>
