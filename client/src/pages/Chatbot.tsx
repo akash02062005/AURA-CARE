@@ -15,8 +15,7 @@ import {
   Volume2,
   Languages,
   Circle,
-  AlertTriangle,
-  Calendar
+  AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,12 +37,56 @@ export default function Chatbot() {
   const [currentMessage, setCurrentMessage] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false); // 🔥 Added
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { data: conversations } = useQuery({
     queryKey: ["/api/chat/conversations"],
   });
+
+  // 🔊 Play AI voice
+  async function playVoice(text: string) {
+    try {
+      const res = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+    } catch (err) {
+      console.error("TTS error:", err);
+    }
+  }
+
+  // 🎤 Start listening (STT)
+  function startListening() {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition not supported in this browser.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setCurrentMessage(transcript);
+      handleSendMessage(transcript);
+    };
+
+    recognition.start();
+  }
 
   const chatMutation = useMutation({
     mutationFn: async (message: string): Promise<ChatResponse> => {
@@ -61,6 +104,9 @@ export default function Chatbot() {
       }]);
       setConversationId(data.conversation.id);
       setIsTyping(false);
+
+      // 🔊 Auto play AI voice
+      playVoice(data.response); // 🔥 Added
 
       if (data.escalated) {
         toast({
@@ -100,18 +146,19 @@ export default function Chatbot() {
     },
   });
 
-  const handleSendMessage = () => {
-    if (!currentMessage.trim() || chatMutation.isPending) return;
+  const handleSendMessage = (msg?: string) => {
+    const text = msg || currentMessage;
+    if (!text.trim() || chatMutation.isPending) return;
 
     const userMessage: Message = {
       role: "user",
-      content: currentMessage,
+      content: text,
       timestamp: new Date().toISOString(),
     };
 
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
-    chatMutation.mutate(currentMessage);
+    chatMutation.mutate(text);
     setCurrentMessage("");
   };
 
@@ -131,7 +178,6 @@ export default function Chatbot() {
   }, [messages, isTyping]);
 
   useEffect(() => {
-    // Initialize with welcome message
     if (messages.length === 0) {
       setMessages([{
         role: "assistant",
@@ -140,19 +186,6 @@ export default function Chatbot() {
       }]);
     }
   }, []);
-
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "text-green-500";
-      case "negative":
-        return "text-orange-500";
-      case "crisis":
-        return "text-red-500";
-      default:
-        return "text-blue-500";
-    }
-  };
 
   return (
     <div className="min-h-screen p-6">
@@ -220,8 +253,6 @@ export default function Chatbot() {
                 </motion.div>
               ))}
             </AnimatePresence>
-
-            {/* Typing Indicator */}
             {isTyping && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -252,54 +283,6 @@ export default function Chatbot() {
                 </div>
               </motion.div>
             )}
-
-            {/* Quick Suggestions */}
-            {messages.length <= 1 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="flex flex-wrap gap-2 justify-center"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCurrentMessage("I'm feeling anxious about my upcoming exams");
-                    handleSendMessage();
-                  }}
-                  className="bg-primary/10 text-primary hover:bg-primary/20"
-                  data-testid="button-suggestion-anxiety"
-                >
-                  I'm feeling anxious
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCurrentMessage("Can you help me with breathing exercises?");
-                    handleSendMessage();
-                  }}
-                  className="bg-secondary/10 text-secondary hover:bg-secondary/20"
-                  data-testid="button-suggestion-breathing"
-                >
-                  Breathing exercises
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCurrentMessage("I want to book a counseling session");
-                    handleSendMessage();
-                  }}
-                  className="bg-accent/10 text-accent hover:bg-accent/20"
-                  data-testid="button-suggestion-counseling"
-                >
-                  Book counselor
-                </Button>
-              </motion.div>
-            )}
-
             <div ref={messagesEndRef} />
           </CardContent>
 
@@ -319,14 +302,15 @@ export default function Chatbot() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 ${isListening ? "text-red-500" : ""}`} // 🔥 Added visual indicator
+                  onClick={startListening} // 🔥 Hook up mic
                   data-testid="button-voice-input"
                 >
                   <Mic className="w-4 h-4" />
                 </Button>
               </div>
               <Button
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 disabled={!currentMessage.trim() || chatMutation.isPending}
                 className="h-12 px-6"
                 data-testid="button-send-message"
@@ -339,7 +323,15 @@ export default function Chatbot() {
                 <Languages className="w-4 h-4 mr-1" />
                 Hindi
               </Button>
-              <Button variant="ghost" size="sm" data-testid="button-read-aloud">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const lastBotMessage = [...messages].reverse().find(m => m.role === "assistant");
+                  if (lastBotMessage) playVoice(lastBotMessage.content);
+                }}
+                data-testid="button-read-aloud"
+              >
                 <Volume2 className="w-4 h-4 mr-1" />
                 Read aloud
               </Button>

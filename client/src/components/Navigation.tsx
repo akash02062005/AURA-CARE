@@ -35,7 +35,7 @@ const navItems = [
   { path: "/map", label: "Places", icon: MapPin },
   { path: "/tasks", label: "Tasks", icon: CheckSquare },
   { path: "/feedback", label: "Feedback", icon: MessageSquare },
-  { path: "/profile", label: "Profile", icon: User },
+  
 ];
 
 export default function Navigation() {
@@ -46,7 +46,7 @@ export default function Navigation() {
 
   const toggleTheme = () => {
     setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
+    document.documentElement.classList.toggle("dark");
   };
 
   if (isMobile) {
@@ -65,15 +65,15 @@ export default function Navigation() {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
+              <Button variant="ghost" size="icon" onClick={toggleTheme}>
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
-              <Button variant="ghost" size="icon" data-testid="button-notifications">
+              <Button variant="ghost" size="icon">
                 <Bell className="w-5 h-5" />
               </Button>
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid="button-menu">
+                  <Button variant="ghost" size="icon">
                     <Menu className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
@@ -87,7 +87,6 @@ export default function Navigation() {
                           <Button
                             variant={isActive ? "default" : "ghost"}
                             className="w-full justify-start space-x-2"
-                            data-testid={`link-${item.label.toLowerCase()}`}
                           >
                             <Icon className="w-5 h-5" />
                             <span>{item.label}</span>
@@ -102,16 +101,20 @@ export default function Navigation() {
           </div>
         </header>
 
-        {/* Mobile Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-border">
-          <div className="grid grid-cols-5 h-16">
-            {navItems.slice(0, 5).map((item) => {
+        {/* Mobile Bottom Navigation (now shows ALL items) */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-border overflow-x-auto">
+          <div className="flex justify-around h-16 px-2 space-x-4">
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location === item.path;
               return (
-                <Link key={item.path} href={item.path} className="flex flex-col items-center justify-center space-y-1">
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={`text-xs ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className="flex flex-col items-center justify-center space-y-1 flex-shrink-0"
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-xs ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                     {item.label}
                   </span>
                 </Link>
@@ -138,20 +141,17 @@ export default function Navigation() {
           </div>
         </Link>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu (now shows ALL items) */}
         <nav className="hidden md:flex items-center space-x-6">
-          {navItems.slice(0, 6).map((item) => {
+          {navItems.map((item) => {
             const isActive = location === item.path;
             return (
               <Link key={item.path} href={item.path}>
                 <Button
                   variant="ghost"
                   className={`${
-                    isActive 
-                      ? 'text-primary bg-primary/10' 
-                      : 'text-muted-foreground hover:text-primary'
+                    isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
                   } transition-colors duration-200`}
-                  data-testid={`link-${item.label.toLowerCase()}`}
                 >
                   {item.label}
                 </Button>
@@ -162,15 +162,15 @@ export default function Navigation() {
 
         {/* User Actions */}
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" data-testid="button-notifications">
+          <Button variant="ghost" size="icon">
             <Bell className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
           <Link href="/profile">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center cursor-pointer" data-testid="link-profile">
-              {user && typeof user === 'object' && user !== null && 'profileImageUrl' in user && user.profileImageUrl ? (
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center cursor-pointer">
+              {user && typeof user === "object" && user !== null && "profileImageUrl" in user && user.profileImageUrl ? (
                 <img src={user.profileImageUrl as string} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <User className="w-4 h-4 text-white" />

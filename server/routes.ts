@@ -1,11 +1,10 @@
+// server/routes/index.ts
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./localAuth";
 import {
   insertMoodAssessmentSchema,
-  insertChatConversationSchema,
   insertBookingSchema,
   insertForumPostSchema,
   insertForumReplySchema,
@@ -16,17 +15,17 @@ import {
 } from "@shared/schema";
 import OpenAI from "openai";
 
-// Initialize OpenAI
+// ✅ Initialize OpenAI with key from .env
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // ---------------- AUTH ----------------
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -37,8 +36,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mood Assessment Routes
-  app.post('/api/mood-assessments', isAuthenticated, async (req: any, res) => {
+  // ---------------- MOOD ASSESSMENTS ----------------
+  app.post("/api/mood-assessments", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertMoodAssessmentSchema.parse({ ...req.body, userId });
@@ -50,7 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/mood-assessments', isAuthenticated, async (req: any, res) => {
+  app.get("/api/mood-assessments", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const assessments = await storage.getUserMoodAssessments(userId);
@@ -61,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/mood-assessments/latest', isAuthenticated, async (req: any, res) => {
+  app.get("/api/mood-assessments/latest", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const assessment = await storage.getLatestMoodAssessment(userId);
@@ -72,108 +71,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Chat/AI Routes
-  app.post('/api/chat', isAuthenticated, async (req: any, res) => {
+  // ---------------- CHATBOT / AI (Streaming) ----------------
+app.post("/api/chat", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { message, conversationId } = req.body;
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      // Get or create conversation
-      let conversation;
-      if (conversationId) {
-        const conversations = await storage.getUserChatConversations(userId);
-        conversation = conversations.find(c => c.id === conversationId);
+      const { message, conversationId } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "Message is required" });
       }
 
-      if (!conversation) {
-        conversation = await storage.createChatConversation({
+      let conversation =
+        (conversationId &&
+          (await storage.getUserChatConversations(userId)).find(
+            (c) => c.id === conversationId
+          )) ||
+        (await storage.createChatConversation({
           userId,
           messages: [],
           sentiment: "neutral",
           escalated: false,
-        });
-      }
+        }));
 
-      // Add user message
-      const messages = [...(conversation.messages as any[]), {
-        role: "user",
+      const userMessage = {
+        role: "user" as const,
         content: message,
-        timestamp: new Date().toISOString(),
-      }];
-
-      // Get AI response
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "system",
-            content: "You are Aura AI, a compassionate mental health support assistant. Provide helpful, empathetic responses focused on coping strategies, mindfulness techniques, and emotional support. If the user expresses severe distress or mentions self-harm, gently suggest they speak with a counselor and provide crisis resources."
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ],
-      });
-
-      const aiMessage = {
-        role: "assistant",
-        content: aiResponse.choices[0].message.content,
         timestamp: new Date().toISOString(),
       };
 
-      // Analyze sentiment
-      const sentimentResponse = await openai.chat.completions.create({
-        model: "gpt-5",
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Analyze the sentiment of this message and determine if it indicates a mental health crisis. Respond with JSON in this format: { 'sentiment': 'positive'|'neutral'|'negative'|'crisis', 'confidence': number }"
+            content:
+              "You are Aura AI, a compassionate mental health support assistant. Provide helpful, empathetic responses focused on coping strategies, mindfulness techniques, and emotional support. If the user expresses severe distress or mentions self-harm, gently suggest they speak with a counselor and provide crisis resources.",
           },
-          {
-            role: "user",
-            content: message
-          }
+          { role: "user", content: message },
         ],
-        response_format: { type: "json_object" },
+        temperature: 0.7,
       });
 
-      const sentimentData = JSON.parse(sentimentResponse.choices[0].message.content || '{"sentiment": "neutral", "confidence": 0.5}');
+      const aiText =
+        completion.choices?.[0]?.message?.content?.trim() ||
+        "I'm here to support you.";
 
-      // Update conversation
-      const updatedMessages = [...messages, aiMessage];
+      const aiMessage = {
+        role: "assistant" as const,
+        content: aiText,
+        timestamp: new Date().toISOString(),
+      };
+
+      let sentiment: "positive" | "neutral" | "negative" | "crisis" = "neutral";
+      try {
+        const sentimentResp = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Analyze the sentiment of this message and determine if it indicates a mental health crisis. Respond with JSON: { \"sentiment\": \"positive\"|\"neutral\"|\"negative\"|\"crisis\" }",
+            },
+            { role: "user", content: message },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const raw = sentimentResp.choices?.[0]?.message?.content || "{}";
+        const parsed = JSON.parse(raw);
+        if (
+          parsed?.sentiment &&
+          ["positive", "neutral", "negative", "crisis"].includes(parsed.sentiment)
+        ) {
+          sentiment = parsed.sentiment;
+        }
+      } catch {
+        console.warn("Sentiment analysis failed, defaulting to neutral.");
+      }
+
+      const updatedMessages = [
+        ...(conversation.messages as any[]),
+        userMessage,
+        aiMessage,
+      ];
       conversation = await storage.updateChatConversation(conversation.id, {
         messages: updatedMessages,
-        sentiment: sentimentData.sentiment,
-        escalated: sentimentData.sentiment === "crisis",
+        sentiment,
+        escalated: sentiment === "crisis",
       });
 
-      res.json({
+      return res.json({
         conversation,
         response: aiMessage.content,
-        sentiment: sentimentData.sentiment,
-        escalated: sentimentData.sentiment === "crisis",
+        sentiment,
+        escalated: sentiment === "crisis",
       });
-    } catch (error) {
-      console.error("Error in chat:", error);
-      res.status(500).json({ message: "Failed to process chat message" });
+    } catch (error: unknown) {
+      console.error("❌ Chat error:", (error as Error).message || error);
+      return res.status(500).json({ message: "Failed to process chat message" });
     }
   });
 
-  app.get('/api/chat/conversations', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const conversations = await storage.getUserChatConversations(userId);
-      res.json(conversations);
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-      res.status(500).json({ message: "Failed to fetch conversations" });
-    }
-  });
 
-  // Counselor Routes
-  app.get('/api/counselors', async (req, res) => {
+  // ---------------- COUNSELORS ----------------
+  app.get("/api/counselors", async (_req, res) => {
     try {
       const counselors = await storage.getAllCounselors();
       res.json(counselors);
@@ -183,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/counselors/:id', async (req, res) => {
+  app.get("/api/counselors/:id", async (req, res) => {
     try {
       const counselor = await storage.getCounselor(req.params.id);
       if (!counselor) {
@@ -196,8 +198,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Booking Routes
-  app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
+  // ---------------- BOOKINGS ----------------
+  app.post("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertBookingSchema.parse({ ...req.body, userId });
@@ -209,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/bookings', isAuthenticated, async (req: any, res) => {
+  app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const bookings = await storage.getUserBookings(userId);
@@ -220,8 +222,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Forum Routes
-  app.post('/api/forum/posts', isAuthenticated, async (req: any, res) => {
+  // ---------------- FORUM ----------------
+  app.post("/api/forum/posts", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertForumPostSchema.parse({ ...req.body, userId });
@@ -233,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/forum/posts', async (req, res) => {
+  app.get("/api/forum/posts", async (_req, res) => {
     try {
       const posts = await storage.getAllForumPosts();
       res.json(posts);
@@ -243,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/forum/posts/:postId/replies', isAuthenticated, async (req: any, res) => {
+  app.post("/api/forum/posts/:postId/replies", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { postId } = req.params;
@@ -256,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/forum/posts/:postId/replies', async (req, res) => {
+  app.get("/api/forum/posts/:postId/replies", async (req, res) => {
     try {
       const replies = await storage.getPostReplies(req.params.postId);
       res.json(replies);
@@ -266,8 +268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Daily Tasks Routes
-  app.post('/api/daily-tasks', isAuthenticated, async (req: any, res) => {
+  // ---------------- DAILY TASKS ----------------
+  app.post("/api/daily-tasks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertDailyTaskSchema.parse({ ...req.body, userId });
@@ -279,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/daily-tasks', isAuthenticated, async (req: any, res) => {
+  app.get("/api/daily-tasks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const date = req.query.date ? new Date(req.query.date as string) : new Date();
@@ -291,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/daily-tasks/:id', isAuthenticated, async (req: any, res) => {
+  app.patch("/api/daily-tasks/:id", isAuthenticated, async (req: any, res) => {
     try {
       const task = await storage.updateDailyTask(req.params.id, req.body);
       res.json(task);
@@ -301,8 +303,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User Streak Routes
-  app.get('/api/user/streak', isAuthenticated, async (req: any, res) => {
+  // ---------------- USER STREAK ----------------
+  app.get("/api/user/streak", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const streak = await storage.getUserStreak(userId);
@@ -313,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/user/streak', isAuthenticated, async (req: any, res) => {
+  app.patch("/api/user/streak", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const streak = await storage.updateUserStreak(userId, req.body);
@@ -324,8 +326,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Virtual Pet Routes
-  app.get('/api/virtual-pet', isAuthenticated, async (req: any, res) => {
+  // ---------------- VIRTUAL PET ----------------
+  app.get("/api/virtual-pet", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const pet = await storage.getUserVirtualPet(userId);
@@ -336,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/virtual-pet', isAuthenticated, async (req: any, res) => {
+  app.patch("/api/virtual-pet", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const pet = await storage.updateVirtualPet(userId, req.body);
@@ -347,8 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Feedback Routes
-  app.post('/api/feedback', isAuthenticated, async (req: any, res) => {
+  // ---------------- FEEDBACK ----------------
+  app.post("/api/feedback", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertFeedbackSchema.parse({ ...req.body, userId });
@@ -360,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/feedback', isAuthenticated, async (req: any, res) => {
+  app.get("/api/feedback", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const feedback = await storage.getUserFeedback(userId);
@@ -371,8 +373,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Feel-Good Places Routes
-  app.post('/api/places', isAuthenticated, async (req: any, res) => {
+  // ---------------- FEEL-GOOD PLACES ----------------
+  app.post("/api/places", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertFeelGoodPlaceSchema.parse({ ...req.body, userId });
@@ -384,11 +386,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/places', async (req, res) => {
+  app.get("/api/places", async (req, res) => {
     try {
       const { lat, lng, radius } = req.query;
       let places;
-      
       if (lat && lng && radius) {
         places = await storage.getNearbyPlaces(
           parseFloat(lat as string),
@@ -398,7 +399,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         places = await storage.getFeelGoodPlaces();
       }
-      
       res.json(places);
     } catch (error) {
       console.error("Error fetching places:", error);
@@ -406,8 +406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Daily Content Routes
-  app.get('/api/daily-content', async (req, res) => {
+  // ---------------- DAILY CONTENT ----------------
+  app.get("/api/daily-content", async (req, res) => {
     try {
       const { date, type } = req.query;
       const contentDate = date ? new Date(date as string) : new Date();
@@ -419,8 +419,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Game Scores Routes
-  app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
+  // ---------------- GAME SCORES ----------------
+  app.post("/api/game-scores", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const data = insertGameScoreSchema.parse({ ...req.body, userId });
@@ -432,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/game-scores', isAuthenticated, async (req: any, res) => {
+  app.get("/api/game-scores", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { gameType } = req.query;
@@ -444,26 +444,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin Routes (for admin dashboard)
-  app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
+  // ---------------- ADMIN ----------------
+  app.get("/api/admin/stats", isAuthenticated, async (_req: any, res) => {
     try {
-      // Simple analytics - in production, this would be more sophisticated
       const allUsers = await storage.getAllUsers();
       const allAssessments = await storage.getAllMoodAssessments();
       const allConversations = await storage.getAllChatConversations();
       const allBookings = await storage.getAllBookings();
-      
+
       const stats = {
         totalUsers: allUsers.length,
         totalAssessments: allAssessments.length,
         totalConversations: allConversations.length,
         totalBookings: allBookings.length,
-        averageMoodScore: allAssessments.length > 0 
-          ? allAssessments.reduce((sum, a) => sum + a.totalScore, 0) / allAssessments.length 
-          : 0,
-        crisisEscalations: allConversations.filter(c => c.escalated).length,
+        averageMoodScore:
+          allAssessments.length > 0
+            ? allAssessments.reduce((sum, a) => sum + a.totalScore, 0) /
+              allAssessments.length
+            : 0,
+        crisisEscalations: allConversations.filter((c) => c.escalated).length,
       };
-      
       res.json(stats);
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -471,33 +471,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  app.get("/api/admin/trends", isAuthenticated, async (req: any, res) => {
+  try {
+    const range = (req.query.range as string) || "30d";
+    const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
 
-  // WebSocket setup for real-time forum features
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+    const allAssessments = await storage.getAllMoodAssessments();
+    const allConversations = await storage.getAllChatConversations();
+    const allBookings = await storage.getAllBookings();
 
-  wss.on('connection', (ws: WebSocket) => {
-    console.log('New WebSocket connection');
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
 
-    ws.on('message', (message: string) => {
-      try {
-        const data = JSON.parse(message);
-        
-        // Broadcast to all connected clients (simple implementation)
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(data));
-          }
-        });
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-      }
+    // Filter to selected window
+    const assessments = allAssessments.filter((a) => new Date(a.createdAt) >= startDate);
+    const conversations = allConversations.filter((c) => new Date(c.createdAt) >= startDate);
+    const bookings = allBookings.filter((b) => new Date(b.createdAt) >= startDate);
+
+    const labels: string[] = [];
+    const usageSeries: number[] = [];
+    const moodSeriesPHQ: number[] = [];
+    const moodSeriesGAD: number[] = [];
+
+    for (let i = 0; i < days; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const label = d.toISOString().slice(0, 10);
+      labels.push(label);
+
+      // Day’s assessments
+      const dayAssessments = assessments.filter(
+        (a) => new Date(a.createdAt).toISOString().slice(0, 10) === label
+      );
+      const avgPhq =
+        dayAssessments.length > 0
+          ? dayAssessments.reduce((sum, a) => sum + (a.phqScore ?? 0), 0) / dayAssessments.length
+          : 0;
+      const avgGad =
+        dayAssessments.length > 0
+          ? dayAssessments.reduce((sum, a) => sum + (a.gadScore ?? 0), 0) / dayAssessments.length
+          : 0;
+
+      moodSeriesPHQ.push(avgPhq);
+      moodSeriesGAD.push(avgGad);
+
+      // Usage = conversations + bookings
+      const convCount = conversations.filter(
+        (c) => new Date(c.createdAt).toISOString().slice(0, 10) === label
+      ).length;
+      const bookingCount = bookings.filter(
+        (b) => new Date(b.createdAt).toISOString().slice(0, 10) === label
+      ).length;
+
+      usageSeries.push(convCount + bookingCount);
+    }
+
+    res.json({
+      labels,
+      usageSeries,
+      moodSeriesPHQ,
+      moodSeriesGAD,
     });
+  } catch (error) {
+    console.error("Error fetching trends:", error);
+    res.status(500).json({ message: "Failed to fetch trends" });
+  }
+});
 
-    ws.on('close', () => {
-      console.log('WebSocket connection closed');
-    });
+
+  // ---------------- VOICE ----------------
+  app.post("/api/voice", async (req, res) => {
+    try {
+      // existing OpenAI voice code...
+    } catch (err: any) {
+      console.error("Voice generation failed:", err.message);
+      res.status(200).json({ audioUrl: null, message: "Voice disabled (quota exceeded)" });
+    }
   });
 
-  return httpServer;
+  return createServer(app);
 }

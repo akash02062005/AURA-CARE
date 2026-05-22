@@ -134,7 +134,7 @@ export class MemStorage implements IStorage {
     const sampleCounselors: Counselor[] = [
       {
         id: "counselor-1",
-        name: "Dr. Sarah Johnson",
+        name: "Dr.Johnson",
         title: "Clinical Psychologist",
         specializations: ["anxiety", "depression", "academic stress"],
         experience: 8,
@@ -149,13 +149,13 @@ export class MemStorage implements IStorage {
           thursday: ["09:00", "10:30", "14:00", "15:30"],
           friday: ["09:00", "10:30", "14:00", "15:30", "17:00"]
         },
-        location: "Mumbai, India",
+        location: "Dindigal, India",
         sessionTypes: ["video", "phone", "in-person"],
         createdAt: new Date(),
       },
       {
         id: "counselor-2",
-        name: "Dr. Rajesh Sharma",
+        name: "Dr. Rajesh ",
         title: "Counseling Psychologist",
         specializations: ["mindfulness", "CBT", "student counseling"],
         experience: 12,
@@ -170,13 +170,13 @@ export class MemStorage implements IStorage {
           thursday: ["09:00", "10:30", "14:00", "15:30"],
           friday: ["09:00", "10:30", "14:00", "15:30", "17:00"]
         },
-        location: "Delhi, India",
+        location: "Dindigul, India",
         sessionTypes: ["video", "phone", "in-person"],
         createdAt: new Date(),
       },
       {
         id: "counselor-3",
-        name: "Dr. Priya Patel",
+        name: "Dr. Priya ",
         title: "Psychiatrist",
         specializations: ["mood disorders", "ADHD", "trauma therapy"],
         experience: 15,
@@ -190,7 +190,7 @@ export class MemStorage implements IStorage {
           thursday: ["09:00", "10:30", "14:00", "15:30"],
           friday: ["09:00", "10:30", "14:00", "15:30", "17:00"]
         },
-        location: "Bangalore, India",
+        location: "Dindigul, India",
         sessionTypes: ["video", "phone", "in-person"],
         createdAt: new Date(),
       }
@@ -310,7 +310,7 @@ export class MemStorage implements IStorage {
       const pet: VirtualPet = {
         id: randomUUID(),
         userId: user.id,
-        name: "Luna",
+        name: "Subramani",
         type: "cat",
         happiness: 50,
         health: 100,
